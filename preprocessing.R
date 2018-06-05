@@ -10,7 +10,7 @@ options(stringsAsFactors = FALSE)
 
 setwd('..')
 
-imgnum <- 3
+imgnum <- 2
 
 img.dest <- paste0('scene', imgnum, 'data', sep="") # for putting data into separate folders for each landsat scene
 
@@ -178,92 +178,71 @@ writeRaster(srtm.crop, "srtm_crop_scene.tif", format = "GTiff") # export to loca
 
 # reproject cropped srtm to scene CRS
 require(gdalUtils)
-gdalwarp('srtm_crop_scene.tif', 'srtm_warp_scene.tif', s_srs = crs(srtm)@projargs, t_srs = crs(scene)@projargs)
-srtm.proj <- raster('srtm_warp_scene.tif')
+# gdalwarp('srtm_crop_scene.tif', 'srtm_warp_scene.tif', s_srs = crs(srtm)@projargs, t_srs = crs(scene)@projargs)
+input <- paste0('..\\', img.names[[imgnum]][1], sep="") # get a raster from the scene
+align_rasters('srtm_16_04.tif',input, dstfile = 'srtm_align.tif')
+srtm.proj <- raster('srtm_align.tif')
 
 #=================== calculate slope
-slope <- gdaldem(mode="slope", input_dem='srtm_warp_scene.tif', p=TRUE, output='slope.tif', output_Raster=TRUE, verbose=TRUE)
+slope <- gdaldem(mode="slope", input_dem='srtm_align.tif', p=TRUE, output='slope.tif', output_Raster=TRUE, verbose=TRUE)
 # need to resample to 30m res, fix dims
 # or maybe not if we just  use a matrix instead of a rasterbrick
 
 #=================== calculate aspect
-aspect <- gdaldem(mode="aspect", input_dem='srtm_warp_scene.tif', p=TRUE, output='aspect.tif', output_Raster=TRUE, verbose=TRUE)
+aspect <- gdaldem(mode="aspect", input_dem='srtm_align.tif', p=TRUE, output='aspect.tif', output_Raster=TRUE, verbose=TRUE)
 # need to resample to 30m res, fix dims
 
 #=================== LULC
 require(FedData)
 nlcd <- get_nlcd(template = ext, label='scene', year=2011, dataset="landcover")
 writeRaster(nlcd, "nlcd_scene.tif", format = "GTiff") # export to local file so we can use with gdalwarp
-gdalwarp('nlcd_scene.tif', 'nlcd_warp_scene.tif',  s_srs = crs(nlcd)@projargs, t_srs = crs(scene)@projargs) # reproject 
-nlcd.proj <- raster('nlcd_warp_scene.tif')
+input <- paste0('..\\', img.names[[imgnum]][1], sep="") # get a raster from the scene
+align_rasters('nlcd_scene.tif', input, dstfile = 'nlcd_align.tif')
+# gdalwarp('nlcd_scene.tif', 'nlcd_warp_scene.tif',  s_srs = crs(nlcd)@projargs, t_srs = crs(scene)@projargs) # reproject 
+nlcd.proj <- raster('nlcd_align.tif')
 
 # consider cleaning up the NLCD a bit using raster::focal()
-
 
 #=================== Distance from Rivers (Area)
 require(FedData)
 nhd <- get_nhd(template = ext, label='scene')
-# nhd.rast <- raster(nrow=dim(scene)[1], ncol=dim(scene)[2])
-# extent(nhd.rast) <- extent(nhd$Area)
-# nhd.rast <- rasterize(nhd$Area, nhd.rast)
-
 
 blank <- matrix(nrow=dim(scene[[1]])[1], ncol=dim(scene[[1]])[2])# create empty matrix to burn vector into
-blank <- raster(blank)
-crs(blank) <- crs(nhd$Area)
+blank <- raster(blank) 
+crs(blank) <- crs(nhd$Area) 
 extent(blank) <- extent(nhd$Area)
 writeRaster(blank, 'blank.tif', format="GTiff", overwrite=TRUE)
 
 nhd.input <- 'EXTRACTIONS\\scene\\NHD\\scene_NHD_Area.shp'
-gdal_rasterize(src_datasource = nhd.input, 
+gdal_rasterize(src_datasource = nhd.input, # burns NHD vector values of 1 into blank raster
                dst_filename = 'blank.tif',
                burn=1)
 
 input <- paste0('..\\', img.names[[imgnum]][1], sep="") # get a raster from the scene
-align_rasters('blank.tif',input, dstfile = 'nhd_align.tif')
+align_rasters('blank.tif',input, dstfile = 'nhd_align.tif') # crop and reproject to scene specifications
 
-nhd.rast <- raster('nhd_align.tif')
-
-nhd.dist <- raster('nhd_dist_arc.tif') # compute distance in ArcMap
-
-
-# reproject raster
-# require(gdalUtils)
-# writeRaster(nhd.rast, "nhd_rast.tif", format = "GTiff") # export to local file so we can use with gdalwarp
-# gdalwarp('nhd_rast.tif', 'nhd_rast_warp.tif',  s_srs = crs(nhd.rast)@projargs, t_srs = crs(scene)@projargs) # reproject 
-# nhd.rast.proj <- raster('nhd_rast_warp.tif') # dimensions are slightly different from scene, need to trim
-
-nhd.rast.proj <- crop(nhd.rast.proj, scene)
-nhd.dist <- distance(nhd.rast.proj)
- # crop because dims changed after gdalwarp
-
-# try using gdal_grid for distance
-nhd.input <- 'EXTRACTIONS\\scene\\NHD\\scene_NHD_Area.shp'
-gdal_grid(src_datasource = nhd.input,
-          txe = c(extent(scene)[1], extent(scene)[2]),
-          tye = c(extent(scene)[3], extent(scene)[4]),
-          dst_filename = 'nhd_area_dist.tif',
-          a = 'average_distance'
-          )
-test <- raster('nhd_area_dist.tif')
+nhd.dist <- raster('nhd_dist_arc.tif') # compute distance in ArcMap because distance() takes WAY too long
 
 #=================== Distance from Rivers (Flowlines)
 nhd.rast.f <- raster(nrow=dim(scene)[1], ncol=dim(scene)[2])
 extent(nhd.rast.f) <- extent(nhd$Flowline)
 nhd.rast.f <- rasterize(nhd$Flowline, nhd.rast.f)
 
-# could also use gdal_rasterize?
+blank <- matrix(nrow=dim(scene[[1]])[1], ncol=dim(scene[[1]])[2])# create empty matrix to burn vector into
+blank <- raster(blank) 
+crs(blank) <- crs(nhd$Flowline) 
+extent(blank) <- extent(nhd$Flowline)
+writeRaster(blank, 'blank.tif', format="GTiff", overwrite=TRUE)
 
-# reproject raster
-require(gdalUtils)
-writeRaster(nhd.rast.f, "nhd_rast_f.tif", format = "GTiff") # export to local file so we can use with gdalwarp
-gdalwarp('nhd_rast_f.tif', 'nhd_rast_f_warp.tif',  s_srs = crs(nhd.rast)@projargs, t_srs = crs(scene)@projargs)# reproject
-nhd.rast.f.proj <- raster('nhd_rast_f_warp.tif') # dimensions are slightly different from scene, need to trim
+nhd.input <- 'EXTRACTIONS\\scene\\NHD\\scene_NHD_Flowline.shp'
+gdal_rasterize(src_datasource = nhd.input, # burns NHD vector values of 1 into blank raster
+               dst_filename = 'blank.tif',
+               burn=1)
 
-nhd.rast.f.proj <- crop(nhd.rast.f.proj, scene) # crop because dims changed after gdalwarp
-nhd.dist.f <- distance(nhd.rast.f.proj)
+input <- paste0('..\\', img.names[[imgnum]][1], sep="") # get a raster from the scene
+align_rasters('blank.tif',input, dstfile = 'nhd_f_align.tif') # crop and reproject to scene specifications
 
-
+nhd.dist.f <- raster('nhd_dist_f_arc.tif') # compute distance in ArcMap EuclideanDistance because distance() takes WAY too long
 
 #==================================================================
 # Detect floodwaters
