@@ -10,7 +10,7 @@ options(stringsAsFactors = FALSE)
 
 setwd('..')
 
-imgnum <- 2
+imgnum <- 1
 
 img.dest <- paste0('scene', imgnum, 'data', sep="") # for putting data into separate folders for each landsat scene
 
@@ -108,67 +108,17 @@ setwd(img.dest) # setwd to the dest file for this scene
 extenturl <- extenturls[[imgnum]]
 download.file(extenturl, 'jrc.tif', mode='wb')
 
-wext <- raster('jrc.tif')
-plot(wext)
-
 rasterOptions(chunksize = 1e+04, maxmemory = 1e+06)
 
-# ## Crop and reproject wext to scene
-# ext <- extent(scene) # get extent of scene
-# ext <- as(ext, "SpatialPolygons") # convert to sp
-# ext@proj4string@projargs <- crs(scene)@projargs # set crs of scene extent polygon
-# ext <- spTransform(ext, crs(wext)) # convert from scene CRS to wext CRS
-# wext.crop <- crop(wext, ext) # crop wext to the scene extent
-# writeRaster(wext.crop, "wext_crop_scene.tif", format = "GTiff") # export to local file so we can use with gdalwarp
-# 
-# # reproject cropped wext to scene CRS
-# require(gdalUtils)
-# gdalwarp('wext_crop_scene.tif', 'wext_warp_scene.tif', s_srs = crs(wext)@projargs, t_srs = crs(scene)@projargs)
-# 
-# wext.proj <- raster('wext_warp_scene.tif') # need to remove the extra .tif
-
-# # trying reprojecting and cropping with just gdalwarp
-# ext <- extent(scene) # get extent of scene
-# ext <- as(ext, "SpatialPolygons") # convert to sp
-# ext@proj4string@projargs <- crs(scene)@projargs # set crs of scene extent polygon
-# ext <- spTransform(ext, crs(wext)) # convert from scene CRS to wext CRS
-# ext <- as(ext, "SpatialPolygonsDataFrame") # for some reason have to do this again for writeOGR
-# writeOGR(ext, getwd(), 'ext', drive='ESRI Shapefile') # save extent shapefile
-# writeRaster(wext.crop, "wext_crop_scene.tif", format = "GTiff") # export to local file so we can use with gdalwarp
-# gdalwarp('jrc.tif', 'wext_warp_scene.tif', # reproject AND crop wext to extent
-#          cutline = 'ext.shp',
-#          crop_to_cutline = TRUE,
-#          s_srs = crs(wext)@projargs, 
-#          t_srs = crs(scene)@projargs)
-# 
-# wext.proj <- raster('wext_warp_scene.tif')
-
-# what about just using align raster?
-
 input <- paste0('..\\', img.names[[imgnum]][1], sep="") # get a raster from the scene
-align_rasters('jrc.tif',input, dstfile = 'wext_align.tif')
+align_rasters('jrc.tif',input, dstfile = 'wext_align.tif') # crop and reproject to scene specifications
 wext.proj <- raster('wext_align.tif')
-
-#==================================================================
-# Auxiliary Data
-#==================================================================
-
-#===================  Distance from water bodies
-wext.crop <- crop(wext.proj, scene)
-wext.crop[wext.crop==0] <- NA # set 0 values to NA
-# wext.dist <- distance(wext.crop)
 
 #=================== Get DEM
 
-# require(elevatr)
-## get bounding box
-# can't figure out zoom level with this
-# dem <- get_aws_terrain(bbox(mndwi.clouds), z=5, crs(mndwi.clouds)@projargs)
-# plot(dem)
-# plot(z, add=TRUE)
-
 # This downloads the srtm that covers the given lat/lon, but more tiles may be necessary to cover the full landsat scene
-srtm <- getData('SRTM', lat=centroids[[imgnum]][1], lon=centroids[[imgnum]][2]) # centroid of scene
+srtm <- getData('SRTM', lat=centroids[[imgnum]][1], lon=centroids[[imgnum]][2], path=paste0()) # centroid of scene
+srtm.file <- intersect(list.files(pattern = "srtm"), list.files(pattern = ".tif$"))[1]
 ext <- extent(scene) # get extent of scene
 ext <- as(ext, "SpatialPolygons") # convert to sp
 ext@proj4string@projargs <- crs(scene)@projargs # set crs of scene extent polygon
@@ -180,17 +130,14 @@ writeRaster(srtm.crop, "srtm_crop_scene.tif", format = "GTiff") # export to loca
 require(gdalUtils)
 # gdalwarp('srtm_crop_scene.tif', 'srtm_warp_scene.tif', s_srs = crs(srtm)@projargs, t_srs = crs(scene)@projargs)
 input <- paste0('..\\', img.names[[imgnum]][1], sep="") # get a raster from the scene
-align_rasters('srtm_16_04.tif',input, dstfile = 'srtm_align.tif')
+align_rasters(srtm.file,input, dstfile = 'srtm_align.tif')
 srtm.proj <- raster('srtm_align.tif')
 
 #=================== calculate slope
 slope <- gdaldem(mode="slope", input_dem='srtm_align.tif', p=TRUE, output='slope.tif', output_Raster=TRUE, verbose=TRUE)
-# need to resample to 30m res, fix dims
-# or maybe not if we just  use a matrix instead of a rasterbrick
 
 #=================== calculate aspect
 aspect <- gdaldem(mode="aspect", input_dem='srtm_align.tif', p=TRUE, output='aspect.tif', output_Raster=TRUE, verbose=TRUE)
-# need to resample to 30m res, fix dims
 
 #=================== LULC
 require(FedData)
@@ -224,10 +171,6 @@ align_rasters('blank.tif',input, dstfile = 'nhd_align.tif') # crop and reproject
 nhd.dist <- raster('nhd_dist_arc.tif') # compute distance in ArcMap because distance() takes WAY too long
 
 #=================== Distance from Rivers (Flowlines)
-nhd.rast.f <- raster(nrow=dim(scene)[1], ncol=dim(scene)[2])
-extent(nhd.rast.f) <- extent(nhd$Flowline)
-nhd.rast.f <- rasterize(nhd$Flowline, nhd.rast.f)
-
 blank <- matrix(nrow=dim(scene[[1]])[1], ncol=dim(scene[[1]])[2])# create empty matrix to burn vector into
 blank <- raster(blank) 
 crs(blank) <- crs(nhd$Flowline) 
@@ -262,12 +205,11 @@ require(EBImage)
 mndwi.mat <- matrix(getValues(mndwi), nrow=dim(mndwi)[1], ncol=dim(mndwi)[2], byrow=TRUE)
 mndwi.otsu <- otsu(mndwi.mat, range=c(-1,1))
 water <- mndwi
-water[water > mndwi.otsu] <- 1
-water[water <= mndwi.otsu] <- 0
+# water[water > mndwi.otsu] <- 1
+# water[water <= mndwi.otsu] <- 0
 
 water <- reclassify(water, c(mndwi.otsu, max(getValues(water), na.rm=T), 1))
 water <- reclassify(water, c(min(getValues(water),na.rm=T), mndwi.otsu, 0))
-
 
 #==================================================================
 # Processing for classifier
@@ -300,7 +242,6 @@ rast.mat <- cbind(samples,rast.mat) # add XY as well
 rast.mat <- rast.mat[complete.cases(rast.mat),] # remove rows with NA
 write.csv(rast.mat, "rast_mat.csv", row.names=FALSE)
 
-
 #==================================================================
 # Generate clouds
 #==================================================================
@@ -327,7 +268,7 @@ require(gdalUtils)
 extent(z) <- extent(scene) # give extent values to clouds
 crs(z) <- crs(scene)# set crs of clouds to scene
 
-z[z==0] <- NA # set 0 values to NA for transparency
+z <- reclassify(z, c(0,0,NA)) # set 0 values to NA for transparency
 # plot(mndwi)
 # plot(z, add=TRUE)
 
@@ -347,7 +288,7 @@ scene.clouds <- mask(scene, z) # mask out clouds in multiband scene
 # These are big files, so save the ones we might want later as .rda files and delete the rest
 
 #=================== Save as RDA
-save(wext.proj, wext.dist, file='wext')
+save(wext.proj, file='wext')
 save(srtm.proj, slope, aspect, file='srtm_data')
 save(nlcd.proj, file='nlcd')
 save(nhd.rast.proj, nhd.dist, nhd.rast.f.proj, nhd.dist.f, file='nhd')
