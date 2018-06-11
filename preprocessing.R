@@ -2,10 +2,12 @@
 # Load dependencies and call constants
 #==================================================================
 
-library(rgdal)
-library(raster)
-library(rgeos)
-library(sp)
+require(rgdal)
+require(raster)
+require(rgeos)
+require(sp)
+require(gdalUtils)
+require(FedData)
 options(stringsAsFactors = FALSE)
 
 setwd('..')
@@ -22,12 +24,12 @@ load(paste0('scene',imgnum, sep=""))
 
 # # Read Landsat 8 OLI images
 # 
-# files <- c('imgs\\Bulk Order 910930\\201609_Flood_US', # scene1
-#            'imgs\\Bulk Order 912622\\201309_Floods_CO\\LS080320322013090300000000MS00_GO006005004',
-#            'imgs\\Bulk Order 912622\\201309_Floods_CO\\LS080310322013082700000000MS00_GO006005004',
-#            'imgs\\Bulk Order 912622\\201512_Flood_Midwest_US\\LS080210332016010200000000MS00_GO006005004',
-#            'imgs\\Bulk Order 912622\\201311_Floods_TX\\LS080270392013110300000000MS00_GO006005004')
-# 
+files <- c('imgs\\Bulk Order 910930\\201609_Flood_US', # scene1
+           'imgs\\Bulk Order 912622\\201309_Floods_CO\\LS080320322013090300000000MS00_GO006005004',
+           'imgs\\Bulk Order 912622\\201309_Floods_CO\\LS080310322013082700000000MS00_GO006005004',
+           'imgs\\Bulk Order 912622\\201512_Flood_Midwest_US\\LS080210332016010200000000MS00_GO006005004',
+           'imgs\\Bulk Order 912622\\201311_Floods_TX\\LS080270392013110300000000MS00_GO006005004')
+
 # ## actually only 1-5 because i gave up on reading 6-9 (don't want thermal or pan, 
 # # but the files are stored differently from those downloaded from disaster events page)
 # # c('imgs\\Bulk Order 910931\\U.S. Landsat 4-8 ARD\\LC08_CU_002007_20170301_20171020_C01_V01_SR',
@@ -35,18 +37,18 @@ load(paste0('scene',imgnum, sep=""))
 # # 'imgs\\Bulk Order 910931\\U.S. Landsat 4-8 ARD\\LC08_CU_002008_20180225_20180309_C01_V01_SR',
 # # 'imgs\\Bulk Order 910931\\U.S. Landsat 4-8 ARD\\LE07_CU_002008_20170214_20170928_C01_V01_SR')
 # 
-# img.names <- list()
-# img.meta <- list()
-# 
-# for(i in 1:length(files)){
-#   scene_files <- list.files(files[i],
-#                             pattern = '.TIF$|.tif',
-#                             full.names = TRUE)[c(1:7,9)] # only gets bands 1-7, not pan or thermal
-#   img.names[[i]] <- scene_files
-#   img.meta[[i]] <- list.files(files[i], 
-#                               pattern = '.txt$',
-#                               full.names=TRUE)
-# }
+img.names <- list()
+img.meta <- list()
+
+for(i in 1:length(files)){
+  scene_files <- list.files(files[i],
+                            pattern = '.TIF$|.tif',
+                            full.names = TRUE)[c(1:7,9)] # only gets bands 1-7, not pan or thermal
+  img.names[[i]] <- scene_files
+  img.meta[[i]] <- list.files(files[i],
+                              pattern = '.txt$',
+                              full.names=TRUE)
+}
 # 
 # # img.meta <- lapply(img.meta, read.csv) # can't read XML files
 # 
@@ -117,45 +119,40 @@ wext.proj <- raster('wext_align.tif')
 #=================== Get DEM
 
 # This downloads the srtm that covers the given lat/lon, but more tiles may be necessary to cover the full landsat scene
-srtm <- getData('SRTM', lat=centroids[[imgnum]][1], lon=centroids[[imgnum]][2], path=paste0()) # centroid of scene
-srtm.file <- intersect(list.files(pattern = "srtm"), list.files(pattern = ".tif$"))[1]
-ext <- extent(scene) # get extent of scene
-ext <- as(ext, "SpatialPolygons") # convert to sp
-ext@proj4string@projargs <- crs(scene)@projargs # set crs of scene extent polygon
-ext <- spTransform(ext, crs(srtm)) # convert from scene CRS to srtm CRS
-srtm.crop <- crop(srtm, ext) # crop srtm to the scene extent
-writeRaster(srtm.crop, "srtm_crop_scene.tif", format = "GTiff") # export to local file so we can use with gdalwarp
+srtm <- getData('SRTM', lat=centroids[[imgnum]][1], lon=centroids[[imgnum]][2]) # centroid of scene
+srtm.file <- intersect(list.files(pattern = "srtm"), list.files(pattern = ".tif$"))[1] # finds SRTM file created above
 
-# reproject cropped srtm to scene CRS
-require(gdalUtils)
-# gdalwarp('srtm_crop_scene.tif', 'srtm_warp_scene.tif', s_srs = crs(srtm)@projargs, t_srs = crs(scene)@projargs)
 input <- paste0('..\\', img.names[[imgnum]][1], sep="") # get a raster from the scene
-align_rasters(srtm.file,input, dstfile = 'srtm_align.tif')
+align_rasters(srtm.file, input, dstfile = 'srtm_align.tif') # align with scene
 srtm.proj <- raster('srtm_align.tif')
 
 #=================== calculate slope
 slope <- gdaldem(mode="slope", input_dem='srtm_align.tif', p=TRUE, output='slope.tif', output_Raster=TRUE, verbose=TRUE)
+align_rasters('slope.tif', input, dstfile = 'slope_align.tif')
 
 #=================== calculate aspect
 aspect <- gdaldem(mode="aspect", input_dem='srtm_align.tif', p=TRUE, output='aspect.tif', output_Raster=TRUE, verbose=TRUE)
+align_rasters('aspect.tif', input, dstfile = 'aspect_align.tif')
 
 #=================== LULC
-require(FedData)
 nlcd <- get_nlcd(template = ext, label='scene', year=2011, dataset="landcover")
-writeRaster(nlcd, "nlcd_scene.tif", format = "GTiff") # export to local file so we can use with gdalwarp
+writeRaster(nlcd, "nlcd_scene.tif", format = "GTiff", overwrite=TRUE) # export to local file so we can use with gdalwarp
 input <- paste0('..\\', img.names[[imgnum]][1], sep="") # get a raster from the scene
 align_rasters('nlcd_scene.tif', input, dstfile = 'nlcd_align.tif')
-# gdalwarp('nlcd_scene.tif', 'nlcd_warp_scene.tif',  s_srs = crs(nlcd)@projargs, t_srs = crs(scene)@projargs) # reproject 
 nlcd.proj <- raster('nlcd_align.tif')
 
 # consider cleaning up the NLCD a bit using raster::focal()
 
 #=================== Distance from Rivers (Area)
-require(FedData)
-nhd <- get_nhd(template = ext, label='scene')
+nhd <- get_nhd(template = ext, label='scene') # download NHD data (area, flowlines, waterbodies - no way to pick and choose)
+nhd <- list(Area = readOGR('EXTRACTIONS\\scene\\NHD\\scene_NHD_Area.shp'),
+            Flowline=readOGR('EXTRACTIONS\\scene\\NHD\\scene_NHD_Flowline.shp'),
+            Line=readOGR('EXTRACTIONS\\scene\\NHD\\scene_NHD_Line.shp'),
+            Waterbody=readOGR('EXTRACTIONS\\scene\\NHD\\scene_NHD_Waterbody.shp')) # just in case nhd is already downloaded
 
 blank <- matrix(nrow=dim(scene[[1]])[1], ncol=dim(scene[[1]])[2])# create empty matrix to burn vector into
-blank <- raster(blank) 
+blank <- raster(blank)
+
 crs(blank) <- crs(nhd$Area) 
 extent(blank) <- extent(nhd$Area)
 writeRaster(blank, 'blank.tif', format="GTiff", overwrite=TRUE)
@@ -210,37 +207,42 @@ water <- mndwi
 
 water <- reclassify(water, c(mndwi.otsu, max(getValues(water), na.rm=T), 1))
 water <- reclassify(water, c(min(getValues(water),na.rm=T), mndwi.otsu, 0))
+# writeRaster(water, 'water.tif')
+# 
+# input <- paste0('..\\', img.names[[imgnum]][1], sep="") # get a raster from the scene
+# align_rasters('water.tif',input, dstfile = 'water.tif') # crop and reproject to scene specifications
+# water <- raster('water.tif')
 
 #==================================================================
 # Processing for classifier
 #==================================================================
 # At this point, all the data will be put into one huge matrix for training in Python
 
-xmin = extent(scene)[1]
-xmax = extent(scene)[2]
-ymin = extent(scene)[3]
-ymax = extent(scene)[4]
-
-# get random samples within image for training and testing
-seed=1
-n.samples <- 5000
-x <- c(runif(n.samples, xmin, xmax))
-y <- c(runif(n.samples, ymin, ymax))
-samples <- cbind(x,y)
-
-# extract values from each raster
-# ... is all input rasters, pts is matrix of sampling point coordinates
-test <- function(..., pts){
-  rasts <- list(...)
-  vals <- lapply(rasts, function(x) extract(x, pts))
-  do.call(cbind, vals)
-}
-
-rast.mat <- test(slope, aspect, nhd.dist, nlcd.proj, water, pts=samples)
-rast.mat <- cbind(samples,rast.mat) # add XY as well
-
-rast.mat <- rast.mat[complete.cases(rast.mat),] # remove rows with NA
-write.csv(rast.mat, "rast_mat.csv", row.names=FALSE)
+# xmin = extent(scene)[1]
+# xmax = extent(scene)[2]
+# ymin = extent(scene)[3]
+# ymax = extent(scene)[4]
+# 
+# # get random samples within image for training and testing
+# seed=1
+# n.samples <- 10000
+# x <- c(runif(n.samples, xmin, xmax))
+# y <- c(runif(n.samples, ymin, ymax))
+# samples <- cbind(x,y)
+# 
+# # extract values from each raster
+# # ... is all input rasters, pts is matrix of sampling point coordinates
+# test <- function(..., pts){
+#   rasts <- list(...)
+#   vals <- lapply(rasts, function(x) extract(x, pts))
+#   do.call(cbind, vals)
+# }
+# 
+# rast.mat <- test(slope, aspect, nhd.dist, nlcd.proj, water, pts=samples)
+# rast.mat <- cbind(samples,rast.mat) # add XY as well
+# 
+# rast.mat <- rast.mat[complete.cases(rast.mat),] # remove rows with NA
+# write.csv(rast.mat, "rast_mat.csv", row.names=FALSE)
 
 #==================================================================
 # Generate clouds
@@ -262,25 +264,46 @@ ppad <- matrix(NA, nrow=dim(scene)[1], ncol=dim(scene)[2]) # create empty matrix
 p <- matrix(sim$data, nrow=sqrt(length(sim$data)), byrow=TRUE) # create matrix of cloud values
 ppad[1:nrow(p), 1:ncol(p)] <- p # set values of empty matrix to clouds, with NAs padding until cloud extent = scene extent
 p <- raster(ppad)
-z<-p>0.3 # eliminate some values to have only partially cloudy image
+z<-p>0.3 # clouded pixels
+y<-p<0.3 # unclouded pixels
 
+# Clouded pixels
 require(gdalUtils)
-extent(z) <- extent(scene) # give extent values to clouds
-crs(z) <- crs(scene)# set crs of clouds to scene
+extent(z) <- extent(scene) # give extent values
+crs(z) <- crs(scene) # set crs to scene
+z <- reclassify(z, c(0,0,NA), include.lowest=TRUE) # set 0 values to NA for transparency
 
-z <- reclassify(z, c(0,0,NA)) # set 0 values to NA for transparency
-# plot(mndwi)
-# plot(z, add=TRUE)
-
+# Unclouded pixels
+require(gdalUtils)
+extent(y) <- extent(scene) # give extent values 
+crs(y) <- crs(scene)# set crs to scene
+y <- reclassify(y, c(0,0,NA), include.lowest=TRUE) # set 0 values to NA for transparency
 
 #==================================================================
-# Processing for cloudy pixel recovery
+# Extracting values from cloudy and non-cloudy pixels
 #==================================================================
-# We want to see how well we can actually guess what is under clouds, so let's create a separate test set of clouded out pixels
+# create separate masked rasters for unclouded pixels (train) and cloudy pixels (test)
 
-# Masking out optical data
-mndwi.clouds <- mask(mndwi, z) # mask out clouds in mndwi
-scene.clouds <- mask(scene, z) # mask out clouds in multiband scene
+# extract clouded or unclouded pixel values from each raster
+masker <- function(..., mask){ # ... is all input rasters, z is raster of 
+  rasts <- list(...)
+  mask.rasts <- lapply(rasts, function(x) mask(x, z)) # will differently sized rasters be a problem?
+  mask.vals <- lapply(mask.rasts, values)
+  do.call(cbind, mask.vals)
+}
+
+#=================== Clouded pixels
+rast.mat.clouds <- masker(slope, aspect, nhd.dist, nlcd.proj, water, mask=z)
+rast.mat.clouds <- cbind(xyFromCell(z, 1:length(z)), rast.mat.clouds) # add XY as well from cell numbers of z
+rast.mat.clouds <- rast.mat.clouds[complete.cases(rast.mat.clouds),] # remove rows with NA
+write.csv(rast.mat.clouds, "rast_mat_clouds.csv", row.names=FALSE)
+
+
+#=================== Unclouded pixels
+rast.mat.unclouds <- masker(slope, aspect, nhd.dist, nlcd.proj, water, mask=y)
+rast.mat.unclouds <- cbind(xyFromCell(y, 1:length(y)), rast.mat.unclouds) # add XY as well from cell numbers of z
+rast.mat.unclouds <- rast.mat.unclouds[complete.cases(rast.mat.unclouds),] # remove rows with NA
+write.csv(rast.mat.unclouds, "rast_mat_unclouds.csv", row.names=FALSE)
 
 #==================================================================
 # Save and delete
@@ -293,7 +316,14 @@ save(srtm.proj, slope, aspect, file='srtm_data')
 save(nlcd.proj, file='nlcd')
 save(nhd.rast.proj, nhd.dist, nhd.rast.f.proj, nhd.dist.f, file='nhd')
 save(mndwi, water, file='water')
-save(ppad, z, mndwi.clouds, scene.clouds, file='clouds')
+save(ppad, z, y, file='cloud_masks')
+
+# load('wext')
+# load('srtm_data')
+# load('nlcd')
+# load('nhd')
+# load('water')
+# load('cloud_masks')
 
 #=================== Delete the rest
 
