@@ -117,16 +117,7 @@ input <- paste0('..\\', img.names[[imgnum]][1], sep="") # get a raster from the 
 align_rasters('jrc.tif',input, dstfile = 'wext_align.tif') # crop and reproject to scene specifications
 wext.proj <- raster('wext_align.tif')
 
-#=================== Get DEM1
-
-# This downloads the srtm that covers the given lat/lon, but more tiles may be necessary to cover the full landsat scene
-srtm <- getData('SRTM', lat=centroids[[imgnum]][1], lon=centroids[[imgnum]][2]) # centroid of scene
-srtm.file <- intersect(list.files(pattern = "srtm"), list.files(pattern = ".tif$"))[1] # finds SRTM file created above
-input <- paste0('..\\', img.names[[imgnum]][1], sep="") # get a raster from the scene
-align_rasters(srtm.file, input, dstfile = 'srtm_align.tif') # align with scene
-srtm.proj <- raster('srtm_align.tif')
-
-#=================== Get DEM2
+#=================== Get DEM
 
 # Find all tiles within scene extent using the SRTM tile grid as a reference
 # from https://www.gis-blog.com/download-srtm-for-an-entire-country/
@@ -159,7 +150,7 @@ writeRaster(srtm_mosaic, 'srtm_mosaic.tif', format="GTiff", overwrite=TRUE)
 
 #Crop tiles to scene extent
 align_rasters('srtm_mosaic.tif', input, dstfile = 'srtm_align.tif')
-srtm.align <- raster('srtm_align.tif')
+srtm.proj <- raster('srtm_align.tif')
 
 #=================== calculate slope
 slope <- gdaldem(mode="slope", input_dem='srtm_align.tif', p=TRUE, output='slope.tif', output_Raster=TRUE, verbose=TRUE)
@@ -167,14 +158,10 @@ align_rasters('slope.tif', input, dstfile = 'slope_align.tif')
 
 #=================== calculate aspect
 aspect <- gdaldem(mode="aspect", input_dem='srtm_align.tif', p=TRUE, output='aspect.tif', output_Raster=TRUE, verbose=TRUE)
-align_rasters('aspect.tif', input, dstfile = 'aspect_align.tif')
+align_rasters('aspect.tif', input, dstfile = 'aspect_align.tif', overwrite=TRUE)
 
 #=================== LULC
-nlcd <- get_nlcd(template = ext, label='scene', year=2011, dataset="landcover")
-writeRaster(nlcd, "nlcd_scene.tif", format = "GTiff", overwrite=TRUE) # export to local file so we can use with gdalwarp
-input <- paste0('..\\', img.names[[imgnum]][1], sep="") # get a raster from the scene
-align_rasters('nlcd_scene.tif', input, dstfile = 'nlcd_align.tif')
-nlcd.proj <- raster('nlcd_align.tif')
+ 
 
 # consider cleaning up the NLCD a bit using raster::focal()
 
@@ -298,21 +285,18 @@ sim <- grf(simdim^2, grid="reg", cov.pars=c(0.75, .25)) # simulate noise
 ppad <- matrix(NA, nrow=dim(scene)[1], ncol=dim(scene)[2]) # create empty matrix of dims of scene
 p <- matrix(sim$data, nrow=sqrt(length(sim$data)), byrow=TRUE) # create matrix of cloud values
 ppad[1:nrow(p), 1:ncol(p)] <- p # set values of empty matrix to clouds, with NAs padding until cloud extent = scene extent
-p <- raster(ppad)
-z<-p>0.3 # clouded pixels
-y<-p<0.3 # unclouded pixels
 
-# Clouded pixels
-require(gdalUtils)
-extent(z) <- extent(scene) # give extent values
-crs(z) <- crs(scene) # set crs to scene
-z <- reclassify(z, c(0,0,NA), include.lowest=TRUE) # set 0 values to NA for transparency
+# Now create rasters from the grf output matrix - one for clouded pixels, one for unclouded pixels (the inverse)
+ppad_cloud <- ifelse(ppad>0.3, 1, NA) # reclassify matrix with arbitrary cutoff (< cutoff is unclouded)
+z <- raster(nrows=nrow(ppad_cloud), ncols=ncol(ppad_cloud), crs=crs(scene))
+extent(z) <- extent(scene)
+z <- setValues(z, values=ppad_cloud)
 
-# Unclouded pixels
-require(gdalUtils)
-extent(y) <- extent(scene) # give extent values 
-crs(y) <- crs(scene)# set crs to scene
-y <- reclassify(y, c(0,0,NA), include.lowest=TRUE) # set 0 values to NA for transparency
+ppad_uncloud <- ifelse(ppad<0.3, 1, NA) # reclassify matrix with arbitrary cutoff (< cutoff is clouded)
+y <- raster(nrows=nrow(ppad_uncloud), ncols=ncol(ppad_uncloud), crs=crs(scene))
+extent(y) <- extent(scene)
+y <- setValues(y, values=ppad_uncloud)
+
 
 #==================================================================
 # Extracting values from cloudy and non-cloudy pixels
@@ -320,25 +304,30 @@ y <- reclassify(y, c(0,0,NA), include.lowest=TRUE) # set 0 values to NA for tran
 # create separate masked rasters for unclouded pixels (train) and cloudy pixels (test)
 
 # extract clouded or unclouded pixel values from each raster
-masker <- function(..., mask){ # ... is all input rasters, z is raster of 
+# This takes a loooooong time to run
+masker <- function(..., mask){ # ... is all input rasters, z is raster of
+  start.time <- Sys.time()
   rasts <- list(...)
   mask.rasts <- lapply(rasts, function(x) mask(x, z)) # will differently sized rasters be a problem?
   mask.vals <- lapply(mask.rasts, values)
   do.call(cbind, mask.vals)
+  paste0("Runtime is", Sys.time() - start.time)
 }
 
 #=================== Clouded pixels
+
+
 rast.mat.clouds <- masker(slope, aspect, nhd.dist, nlcd.proj, water, mask=z)
 rast.mat.clouds <- cbind(xyFromCell(z, 1:length(z)), rast.mat.clouds) # add XY as well from cell numbers of z
 rast.mat.clouds <- rast.mat.clouds[complete.cases(rast.mat.clouds),] # remove rows with NA
-write.csv(rast.mat.clouds, "rast_mat_clouds.csv", row.names=FALSE)
+write.csv(rast.mat.clouds, "rast_mat_clouds.csv", row.names=FALSE, overwrite=TRUE)
 
 
 #=================== Unclouded pixels
 rast.mat.unclouds <- masker(slope, aspect, nhd.dist, nlcd.proj, water, mask=y)
 rast.mat.unclouds <- cbind(xyFromCell(y, 1:length(y)), rast.mat.unclouds) # add XY as well from cell numbers of z
 rast.mat.unclouds <- rast.mat.unclouds[complete.cases(rast.mat.unclouds),] # remove rows with NA
-write.csv(rast.mat.unclouds, "rast_mat_unclouds.csv", row.names=FALSE)
+write.csv(rast.mat.unclouds, "rast_mat_unclouds.csv", row.names=FALSE, overwrite=TRUE)
 
 #==================================================================
 # Save and delete
@@ -355,10 +344,10 @@ write.csv(rast.mat.unclouds, "rast_mat_unclouds.csv", row.names=FALSE)
 
 # load('wext')
 # load('srtm_data')
-# load('nlcd')
+load('nlcd')
 # load('nhd')
-# load('water')
-# load('cloud_masks')
+load('water')
+load('cloud_masks')
 
 #=================== Delete the rest
 
