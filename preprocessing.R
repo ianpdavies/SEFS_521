@@ -8,6 +8,7 @@ require(rgeos)
 require(sp)
 require(gdalUtils)
 require(FedData)
+require(data.table) # for `fwrite` to export matrices
 options(stringsAsFactors = FALSE)
 
 setwd('..')
@@ -292,12 +293,18 @@ z <- raster(nrows=nrow(ppad_cloud), ncols=ncol(ppad_cloud), crs=crs(scene))
 extent(z) <- extent(scene)
 z <- setValues(z, values=ppad_cloud)
 
+writeRaster(z, 'cloud_vals.tif') # save raster and read it, so the values are stored in file instead of in-memory (faster)
+z <- raster('cloud_vals.tif')
+
 ppad_uncloud <- ifelse(ppad<0.3, 1, NA) # reclassify matrix with arbitrary cutoff (< cutoff is clouded)
 y <- raster(nrows=nrow(ppad_uncloud), ncols=ncol(ppad_uncloud), crs=crs(scene))
 extent(y) <- extent(scene)
 y <- setValues(y, values=ppad_uncloud)
 
-rm(list=c(ppad, ppad_cloud, ppad_uncloud))
+writeRaster(z, 'uncloud_vals.tif')
+y <- raster('uncloud_vals.tif')
+
+rm(ppad, ppad_cloud, ppad_uncloud)
 #==================================================================
 # Extracting values from cloudy and non-cloudy pixels
 #==================================================================
@@ -317,14 +324,14 @@ masker <- function(..., mask){ # ... is all input rasters, z is raster of
 rast.mat.clouds <- masker(slope, aspect, nhd.dist, nlcd.proj, water, mask=z)
 rast.mat.clouds <- cbind(xyFromCell(z, 1:length(z)), rast.mat.clouds) # add XY as well from cell numbers of z
 rast.mat.clouds <- rast.mat.clouds[complete.cases(rast.mat.clouds),] # remove rows with NA
-write.csv(rast.mat.clouds, "rast_mat_clouds.csv", row.names=FALSE, overwrite=TRUE)
+fwrite(data.frame(rast.mat.clouds), "rast_mat_clouds.csv", row.names=FALSE)
 
 
 #=================== Unclouded pixels
 rast.mat.unclouds <- masker(slope, aspect, nhd.dist, nlcd.proj, water, mask=y)
 rast.mat.unclouds <- cbind(xyFromCell(y, 1:length(y)), rast.mat.unclouds) # add XY as well from cell numbers of z
 rast.mat.unclouds <- rast.mat.unclouds[complete.cases(rast.mat.unclouds),] # remove rows with NA
-write.csv(rast.mat.unclouds, "rast_mat_unclouds.csv", row.names=FALSE, overwrite=TRUE)
+fwrite(data.frame(rast.mat.unclouds), "rast_mat_unclouds.csv", row.names=FALSE)
 
 #==================================================================
 # Save and delete
