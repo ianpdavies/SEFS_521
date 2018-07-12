@@ -40,6 +40,7 @@ files <- c('imgs\\Bulk Order 910930\\201609_Flood_US', # scene1
 img.names <- list()
 img.meta <- list()
 
+# gets all layer names for each scene
 for(i in 1:length(files)){
   scene_files <- list.files(files[i],
                             pattern = '.TIF$|.tif',
@@ -77,7 +78,7 @@ for(i in 1:length(files)){
 # Some constants
 #==================================================================
 
-#=================== Lat/long of scene centroids
+#=================== Lat/long of scene centroids, from metadata files
 # For later use in downloading aux data
 centroids <- list()
 centroids[[1]] <- c(41.746655, -91.41925) # scene1 lat, long
@@ -116,15 +117,49 @@ input <- paste0('..\\', img.names[[imgnum]][1], sep="") # get a raster from the 
 align_rasters('jrc.tif',input, dstfile = 'wext_align.tif') # crop and reproject to scene specifications
 wext.proj <- raster('wext_align.tif')
 
-#=================== Get DEM
+#=================== Get DEM1
 
 # This downloads the srtm that covers the given lat/lon, but more tiles may be necessary to cover the full landsat scene
 srtm <- getData('SRTM', lat=centroids[[imgnum]][1], lon=centroids[[imgnum]][2]) # centroid of scene
 srtm.file <- intersect(list.files(pattern = "srtm"), list.files(pattern = ".tif$"))[1] # finds SRTM file created above
-
 input <- paste0('..\\', img.names[[imgnum]][1], sep="") # get a raster from the scene
 align_rasters(srtm.file, input, dstfile = 'srtm_align.tif') # align with scene
 srtm.proj <- raster('srtm_align.tif')
+
+#=================== Get DEM2
+
+# Find all tiles within scene extent using the SRTM tile grid as a reference
+# from https://www.gis-blog.com/download-srtm-for-an-entire-country/
+srtm.grid <- shapefile("../srtm/tiles.shp")
+scene.shp <- as(extent(scene), 'SpatialPolygons') # create sp from scene extent
+crs(scene.shp) <- crs(scene) # add proj
+scene.shp <- spTransform(scene.shp, crs(srtm.grid)) # reproject to scene projection
+intersects <- gIntersects(scene.shp, srtm.grid, byid=T) # find SRTM tiles that intersect scene
+tiles <- srtm.grid[intersects[,1],] # finds tiles that intersect scene, by ID
+
+# Download tiles
+srtm_list  <- list()
+for(i in 1:length(tiles)) {
+  lon <- extent(tiles[i,])[1]  + (extent(tiles[i,])[2] - extent(tiles[i,])[1]) / 2
+  lat <- extent(tiles[i,])[3]  + (extent(tiles[i,])[4] - extent(tiles[i,])[3]) / 2
+  
+  tile <- getData('SRTM', 
+                  lon=lon, 
+                  lat=lat)
+  
+  srtm_list[[i]] <- tile
+}
+
+# Mosaic tiles
+srtm_list$fun <- mean # function for mosaic to compute cell values where layers overlap
+srtm_mosaic   <- do.call(mosaic, srtm_list) # mosaic
+
+# Export mosaic
+writeRaster(srtm_mosaic, 'srtm_mosaic.tif', format="GTiff", overwrite=TRUE)
+
+#Crop tiles to scene extent
+align_rasters('srtm_mosaic.tif', input, dstfile = 'srtm_align.tif')
+srtm.align <- raster('srtm_align.tif')
 
 #=================== calculate slope
 slope <- gdaldem(mode="slope", input_dem='srtm_align.tif', p=TRUE, output='slope.tif', output_Raster=TRUE, verbose=TRUE)
@@ -311,12 +346,12 @@ write.csv(rast.mat.unclouds, "rast_mat_unclouds.csv", row.names=FALSE)
 # These are big files, so save the ones we might want later as .rda files and delete the rest
 
 #=================== Save as RDA
-save(wext.proj, file='wext')
-save(srtm.proj, slope, aspect, file='srtm_data')
-save(nlcd.proj, file='nlcd')
-save(nhd.rast.proj, nhd.dist, nhd.rast.f.proj, nhd.dist.f, file='nhd')
-save(mndwi, water, file='water')
-save(ppad, z, y, file='cloud_masks')
+# save(wext.proj, file='wext')
+# save(srtm.proj, slope, aspect, file='srtm_data')
+# save(nlcd.proj, file='nlcd')
+# save(nhd.rast.proj, nhd.dist, nhd.rast.f.proj, nhd.dist.f, file='nhd')
+# save(mndwi, water, file='water')
+# save(ppad, z, y, file='cloud_masks')
 
 # load('wext')
 # load('srtm_data')
