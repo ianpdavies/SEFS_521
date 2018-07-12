@@ -78,16 +78,7 @@ for(i in 1:length(files)){
 # Some constants
 #==================================================================
 
-#=================== Lat/long of scene centroids, from metadata files
-# For later use in downloading aux data
-centroids <- list()
-centroids[[1]] <- c(41.746655, -91.41925) # scene1 lat, long
-centroids[[2]] <- c(40.319855,-102.72957) # scene2
-centroids[[3]] <- c(40.31845, -101.187445) # scene3
-centroids[[4]] <- c(38.892855, -86.15885) # scene4
-centroids[[5]] <- c(30.295545, -97.865065) # scene5
-
-#=================== urls for JRC permanent water extent tiles
+# urls for JRC permanent water extent tiles
 extenturls <- list()
 extenturls[[1]] <- 'https://storage.googleapis.com/global-surface-water/downloads/extent/extent_100W_50N.tif'
 extenturls[[2]] <- 'https://storage.googleapis.com/global-surface-water/downloads/extent/extent_110W_50N.tif'
@@ -95,6 +86,9 @@ extenturls[[3]] <- 'https://storage.googleapis.com/global-surface-water/download
 extenturls[[4]] <- 'https://storage.googleapis.com/global-surface-water/downloads/extent/extent_90W_40N.tif'
 extenturls[[5]] <- 'https://storage.googleapis.com/global-surface-water/downloads/extent/extent_100W_40N.tif'
 
+rasterOptions(chunksize = 1e+04, maxmemory = 1e+06)
+
+input <- paste0('..\\', img.names[[imgnum]][1], sep="") # the file location of the scene raster, used for GDAL operations
 
 #==================================================================
 # Auxiliary data
@@ -110,12 +104,11 @@ setwd(img.dest) # setwd to the dest file for this scene
 # Get JRC water surface extent
 extenturl <- extenturls[[imgnum]]
 download.file(extenturl, 'jrc.tif', mode='wb')
-
-rasterOptions(chunksize = 1e+04, maxmemory = 1e+06)
-
-input <- paste0('..\\', img.names[[imgnum]][1], sep="") # get a raster from the scene
 align_rasters('jrc.tif',input, dstfile = 'wext_align.tif') # crop and reproject to scene specifications
 wext.proj <- raster('wext_align.tif')
+
+# Create layer of distances from permanent water extent
+# ...
 
 #=================== Get DEM
 
@@ -153,15 +146,22 @@ align_rasters('srtm_mosaic.tif', input, dstfile = 'srtm_align.tif')
 srtm.proj <- raster('srtm_align.tif')
 
 #=================== calculate slope
-slope <- gdaldem(mode="slope", input_dem='srtm_align.tif', p=TRUE, output='slope.tif', output_Raster=TRUE, verbose=TRUE)
-align_rasters('slope.tif', input, dstfile = 'slope_align.tif')
+gdaldem(mode="slope", input_dem='srtm_align.tif', p=TRUE, output='slope.tif', output_Raster=TRUE, verbose=TRUE)
+align_rasters('slope.tif', input, dstfile = 'slope_align.tif', overwrite=TRUE)
+slope <- raster('slope_align.tif')
 
 #=================== calculate aspect
-aspect <- gdaldem(mode="aspect", input_dem='srtm_align.tif', p=TRUE, output='aspect.tif', output_Raster=TRUE, verbose=TRUE)
+gdaldem(mode="aspect", input_dem='srtm_align.tif', p=TRUE, output='aspect.tif', output_Raster=TRUE, verbose=TRUE)
 align_rasters('aspect.tif', input, dstfile = 'aspect_align.tif', overwrite=TRUE)
+aspect <- raster('aspect_align.tif')
 
 #=================== LULC
- 
+require(FedData)
+nlcd <- get_nlcd(template = ext, label='scene', year=2011, dataset="landcover")
+writeRaster(nlcd, "nlcd_scene.tif", format = "GTiff") # export to local file so we can use with gdalwarp
+input <- paste0('..\\', img.names[[imgnum]][1], sep="") # get a raster from the scene
+align_rasters('nlcd_scene.tif', input, dstfile = 'nlcd_align.tif')
+nlcd.proj <- raster('nlcd_align.tif')
 
 # consider cleaning up the NLCD a bit using raster::focal()
 
@@ -297,14 +297,13 @@ y <- raster(nrows=nrow(ppad_uncloud), ncols=ncol(ppad_uncloud), crs=crs(scene))
 extent(y) <- extent(scene)
 y <- setValues(y, values=ppad_uncloud)
 
-
+rm(list=c(ppad, ppad_cloud, ppad_uncloud))
 #==================================================================
 # Extracting values from cloudy and non-cloudy pixels
 #==================================================================
 # create separate masked rasters for unclouded pixels (train) and cloudy pixels (test)
 
 # extract clouded or unclouded pixel values from each raster
-# This takes a loooooong time to run
 masker <- function(..., mask){ # ... is all input rasters, z is raster of
   start.time <- Sys.time()
   rasts <- list(...)
@@ -315,8 +314,6 @@ masker <- function(..., mask){ # ... is all input rasters, z is raster of
 }
 
 #=================== Clouded pixels
-
-
 rast.mat.clouds <- masker(slope, aspect, nhd.dist, nlcd.proj, water, mask=z)
 rast.mat.clouds <- cbind(xyFromCell(z, 1:length(z)), rast.mat.clouds) # add XY as well from cell numbers of z
 rast.mat.clouds <- rast.mat.clouds[complete.cases(rast.mat.clouds),] # remove rows with NA
@@ -342,12 +339,12 @@ write.csv(rast.mat.unclouds, "rast_mat_unclouds.csv", row.names=FALSE, overwrite
 # save(mndwi, water, file='water')
 # save(ppad, z, y, file='cloud_masks')
 
-# load('wext')
-# load('srtm_data')
-load('nlcd')
-# load('nhd')
-load('water')
-load('cloud_masks')
+load('wext', verbose=TRUE)
+load('srtm_data', verbose=TRUE)
+load('nlcd', verbose=TRUE)
+load('nhd', verbose=TRUE)
+load('water', verbose=TRUE)
+load('cloud_masks', verbose=TRUE)
 
 #=================== Delete the rest
 
