@@ -1,0 +1,7 @@
+---
+title: "Project Notes"
+output: html_notebook
+---
+
+* Layers are not lining up
+  + DEM downloaded using just the centroid and not the extent not the correct size
