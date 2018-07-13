@@ -311,21 +311,24 @@ rm(ppad, ppad_cloud, ppad_uncloud)
 # create separate masked rasters for unclouded pixels (train) and cloudy pixels (test)
 
 # extract clouded or unclouded pixel values from each raster
-masker <- function(..., mask){ # ... is all input rasters, z is raster of
-  start.time <- Sys.time()
+
+masker <- function(..., m){ # ... is all input rasters, z is raster of
   rasts <- list(...)
-  mask.rasts <- lapply(rasts, function(x) mask(x, z)) # will differently sized rasters be a problem?
+  mask.rasts <- lapply(rasts, function(x) mask(x, m)) # will differently sized rasters be a problem?
   mask.vals <- lapply(mask.rasts, values)
   do.call(cbind, mask.vals)
-  paste0("Runtime is", Sys.time() - start.time)
 }
 
 #=================== Clouded pixels
-rast.mat.clouds <- masker(slope, aspect, nhd.dist, nlcd.proj, water, mask=z)
+start.time <- Sys.time()
+rast.mat.clouds <- masker(slope, aspect, nhd.dist, nlcd.proj, water, m=z)
+paste0("Runtime is ", round(Sys.time() - start.time,3))
 rast.mat.clouds <- cbind(xyFromCell(z, 1:length(z)), rast.mat.clouds) # add XY as well from cell numbers of z
+paste0("Runtime is ", round(Sys.time() - start.time,3))
 rast.mat.clouds <- rast.mat.clouds[complete.cases(rast.mat.clouds),] # remove rows with NA
+paste0("Runtime is ", round(Sys.time() - start.time,3))
 fwrite(data.frame(rast.mat.clouds), "rast_mat_clouds.csv", row.names=FALSE)
-
+paste0("Runtime is ", round(Sys.time() - start.time,3))
 
 #=================== Unclouded pixels
 rast.mat.unclouds <- masker(slope, aspect, nhd.dist, nlcd.proj, water, mask=y)
