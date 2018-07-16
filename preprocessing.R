@@ -293,7 +293,7 @@ z <- raster(nrows=nrow(ppad_cloud), ncols=ncol(ppad_cloud), crs=crs(scene))
 extent(z) <- extent(scene)
 z <- setValues(z, values=ppad_cloud)
 
-writeRaster(z, 'cloud_vals.tif') # save raster and read it, so the values are stored in file instead of in-memory (faster)
+writeRaster(z, 'cloud_vals.tif', overwrite=TRUE) # save raster and read it, so the values are stored in file instead of in-memory (faster)
 z <- raster('cloud_vals.tif')
 
 ppad_uncloud <- ifelse(ppad<0.3, 1, NA) # reclassify matrix with arbitrary cutoff (< cutoff is clouded)
@@ -301,7 +301,7 @@ y <- raster(nrows=nrow(ppad_uncloud), ncols=ncol(ppad_uncloud), crs=crs(scene))
 extent(y) <- extent(scene)
 y <- setValues(y, values=ppad_uncloud)
 
-writeRaster(z, 'uncloud_vals.tif')
+writeRaster(y, 'uncloud_vals.tif', overwrite=TRUE)
 y <- raster('uncloud_vals.tif')
 
 rm(ppad, ppad_cloud, ppad_uncloud)
@@ -310,8 +310,10 @@ rm(ppad, ppad_cloud, ppad_uncloud)
 #==================================================================
 # create separate masked rasters for unclouded pixels (train) and cloudy pixels (test)
 
-# extract clouded or unclouded pixel values from each raster
+# Need to increase memory usage for masking. Benchmark gives me a little over 1 minute
+rasterOptions(chunksize = 1e+08, maxmemory = 1e+09)
 
+# extract clouded or unclouded pixel values from each raster
 masker <- function(..., m){ # ... is all input rasters, z is raster of
   rasts <- list(...)
   mask.rasts <- lapply(rasts, function(x) mask(x, m)) # will differently sized rasters be a problem?

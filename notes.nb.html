@@ -176,13 +176,38 @@ $(document).ready(function () {
 
 
 <!-- rnb-text-begin -->
+<div id="project-notes" class="section level2">
+<h2>Project Notes</h2>
 <ul>
-<li>Layers are not lining up</li>
+<li>The slope/aspect from <code>gdaldem</code> look a little funky, check them out in ArcGIS</li>
+<li>Create layer of distances from permanent water extent</li>
+<li><p>To avoid data allocation problems, maybe when creating aux data we should: create, save, delete each one and then load them at the end to create the matrix.</p></li>
+<li><p>Save files needed for GDAL operations to a temp folder, then delete the entire folder</p></li>
+<li><p>Make naming conventions consistent (e.g. “.._align.tif“” or “.._proj.tif“)</p></li>
+</ul>
+<hr />
+</div>
+<div id="completed-tasks-and-notes" class="section level2">
+<h2>Completed Tasks and Notes</h2>
+<ul>
+<li>Layers are not lining up
+<ul>
 <li>DEM downloaded using just the centroid and not the extent not the correct size</li>
+<li>Mosaic with <code>getData</code> function using code here: <a href="https://www.gis-blog.com/download-srtm-for-an-entire-country/" class="uri">https://www.gis-blog.com/download-srtm-for-an-entire-country/</a></li>
+</ul></li>
+</ul>
+<hr />
+</div>
+<div id="longer-term-project-notes" class="section level2">
+<h2>Longer Term Project Notes</h2>
+<ul>
+<li>Run tests with increasing % cloud coverage to see how predictions differ. How much info on nearby flooding is needed?</li>
+<li>Should images be mosaicked together? Distance from waterbodies or nearby flooding is currently restricted to just one image, ignoring adjacent images.</li>
 </ul>
 <!-- rnb-text-end -->
+</div>
 
-<div id="rmd-source-code">LS0tDQp0aXRsZTogIlByb2plY3QgTm90ZXMiDQpvdXRwdXQ6IGh0bWxfbm90ZWJvb2sNCi0tLQ0KDQoqIExheWVycyBhcmUgbm90IGxpbmluZyB1cA0KICArIERFTSBkb3dubG9hZGVkIHVzaW5nIGp1c3QgdGhlIGNlbnRyb2lkIGFuZCBub3QgdGhlIGV4dGVudCBub3QgdGhlIGNvcnJlY3Qgc2l6ZQ==</div>
+<div id="rmd-source-code">LS0tDQp0aXRsZTogIlByb2plY3QgTm90ZXMiDQpvdXRwdXQ6IGh0bWxfbm90ZWJvb2sNCi0tLQ0KDQojIyBQcm9qZWN0IE5vdGVzDQoqIFRoZSBzbG9wZS9hc3BlY3QgZnJvbSBgZ2RhbGRlbWAgbG9vayBhIGxpdHRsZSBmdW5reSwgY2hlY2sgdGhlbSBvdXQgaW4gQXJjR0lTDQoqIENyZWF0ZSBsYXllciBvZiBkaXN0YW5jZXMgZnJvbSBwZXJtYW5lbnQgd2F0ZXIgZXh0ZW50DQoqIFRvIGF2b2lkIGRhdGEgYWxsb2NhdGlvbiBwcm9ibGVtcywgbWF5YmUgd2hlbiBjcmVhdGluZyBhdXggZGF0YSB3ZSBzaG91bGQ6IGNyZWF0ZSwgc2F2ZSwgZGVsZXRlIGVhY2ggb25lIGFuZCB0aGVuIGxvYWQgdGhlbSBhdCB0aGUgZW5kIHRvIGNyZWF0ZSB0aGUgbWF0cml4Lg0KDQoqIFNhdmUgZmlsZXMgbmVlZGVkIGZvciBHREFMIG9wZXJhdGlvbnMgdG8gYSB0ZW1wIGZvbGRlciwgdGhlbiBkZWxldGUgdGhlIGVudGlyZSBmb2xkZXINCg0KKiBNYWtlIG5hbWluZyBjb252ZW50aW9ucyBjb25zaXN0ZW50IChlLmcuICIuLl9hbGlnbi50aWYiIiBvciAiLi5fcHJvai50aWYiKQ0KDQoqKioNCiMjIENvbXBsZXRlZCBUYXNrcyBhbmQgTm90ZXMNCg0KICogTGF5ZXJzIGFyZSBub3QgbGluaW5nIHVwDQogICAgKyBERU0gZG93bmxvYWRlZCB1c2luZyBqdXN0IHRoZSBjZW50cm9pZCBhbmQgbm90IHRoZSBleHRlbnQgbm90IHRoZSBjb3JyZWN0IHNpemUNCiAgICArIE1vc2FpYyB3aXRoIGBnZXREYXRhYCBmdW5jdGlvbiB1c2luZyBjb2RlIGhlcmU6IGh0dHBzOi8vd3d3Lmdpcy1ibG9nLmNvbS9kb3dubG9hZC1zcnRtLWZvci1hbi1lbnRpcmUtY291bnRyeS8NCg0KKioqDQojIyBMb25nZXIgVGVybSBQcm9qZWN0IE5vdGVzDQoqIFJ1biB0ZXN0cyB3aXRoIGluY3JlYXNpbmcgJSBjbG91ZCBjb3ZlcmFnZSB0byBzZWUgaG93IHByZWRpY3Rpb25zIGRpZmZlci4gSG93IG11Y2ggaW5mbyBvbiBuZWFyYnkgZmxvb2RpbmcgaXMgbmVlZGVkPw0KKiBTaG91bGQgaW1hZ2VzIGJlIG1vc2FpY2tlZCB0b2dldGhlcj8gRGlzdGFuY2UgZnJvbSB3YXRlcmJvZGllcyBvciBuZWFyYnkgZmxvb2RpbmcgaXMgY3VycmVudGx5IHJlc3RyaWN0ZWQgdG8ganVzdCBvbmUgaW1hZ2UsIGlnbm9yaW5nIGFkamFjZW50IGltYWdlcy4=</div>
 
 
 
