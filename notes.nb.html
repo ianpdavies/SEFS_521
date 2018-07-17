@@ -179,8 +179,9 @@ $(document).ready(function () {
 <div id="project-notes" class="section level2">
 <h2>Project Notes</h2>
 <ul>
-<li>The slope/aspect from <code>gdaldem</code> look a little funky, check them out in ArcGIS</li>
-<li>Create layer of distances from permanent water extent</li>
+<li><p>The slope/aspect from <code>gdaldem</code> look a little funky, check them out in ArcGIS</p></li>
+<li><p>Create layer of distances from permanent water extent</p></li>
+<li><p>How to visualize correct/incorrectly predicted pixels as a raster?</p></li>
 <li><p>To avoid data allocation problems, maybe when creating aux data we should: create, save, delete each one and then load them at the end to create the matrix.</p></li>
 <li><p>Save files needed for GDAL operations to a temp folder, then delete the entire folder</p></li>
 <li><p>Make naming conventions consistent (e.g. “.._align.tif“” or “.._proj.tif“)</p></li>
@@ -201,13 +202,13 @@ $(document).ready(function () {
 <div id="longer-term-project-notes" class="section level2">
 <h2>Longer Term Project Notes</h2>
 <ul>
-<li>Run tests with increasing % cloud coverage to see how predictions differ. How much info on nearby flooding is needed?</li>
-<li>Should images be mosaicked together? Distance from waterbodies or nearby flooding is currently restricted to just one image, ignoring adjacent images.</li>
+<li><p>Run tests with increasing % cloud coverage to see how predictions differ. How much info on nearby flooding is needed?</p></li>
+<li><p>Should images be mosaicked together? Distance from waterbodies or nearby flooding is currently restricted to just one image, ignoring adjacent images.</p></li>
 </ul>
 <!-- rnb-text-end -->
 </div>
 
-<div id="rmd-source-code">LS0tDQp0aXRsZTogIlByb2plY3QgTm90ZXMiDQpvdXRwdXQ6IGh0bWxfbm90ZWJvb2sNCi0tLQ0KDQojIyBQcm9qZWN0IE5vdGVzDQoqIFRoZSBzbG9wZS9hc3BlY3QgZnJvbSBgZ2RhbGRlbWAgbG9vayBhIGxpdHRsZSBmdW5reSwgY2hlY2sgdGhlbSBvdXQgaW4gQXJjR0lTDQoqIENyZWF0ZSBsYXllciBvZiBkaXN0YW5jZXMgZnJvbSBwZXJtYW5lbnQgd2F0ZXIgZXh0ZW50DQoqIFRvIGF2b2lkIGRhdGEgYWxsb2NhdGlvbiBwcm9ibGVtcywgbWF5YmUgd2hlbiBjcmVhdGluZyBhdXggZGF0YSB3ZSBzaG91bGQ6IGNyZWF0ZSwgc2F2ZSwgZGVsZXRlIGVhY2ggb25lIGFuZCB0aGVuIGxvYWQgdGhlbSBhdCB0aGUgZW5kIHRvIGNyZWF0ZSB0aGUgbWF0cml4Lg0KDQoqIFNhdmUgZmlsZXMgbmVlZGVkIGZvciBHREFMIG9wZXJhdGlvbnMgdG8gYSB0ZW1wIGZvbGRlciwgdGhlbiBkZWxldGUgdGhlIGVudGlyZSBmb2xkZXINCg0KKiBNYWtlIG5hbWluZyBjb252ZW50aW9ucyBjb25zaXN0ZW50IChlLmcuICIuLl9hbGlnbi50aWYiIiBvciAiLi5fcHJvai50aWYiKQ0KDQoqKioNCiMjIENvbXBsZXRlZCBUYXNrcyBhbmQgTm90ZXMNCg0KICogTGF5ZXJzIGFyZSBub3QgbGluaW5nIHVwDQogICAgKyBERU0gZG93bmxvYWRlZCB1c2luZyBqdXN0IHRoZSBjZW50cm9pZCBhbmQgbm90IHRoZSBleHRlbnQgbm90IHRoZSBjb3JyZWN0IHNpemUNCiAgICArIE1vc2FpYyB3aXRoIGBnZXREYXRhYCBmdW5jdGlvbiB1c2luZyBjb2RlIGhlcmU6IGh0dHBzOi8vd3d3Lmdpcy1ibG9nLmNvbS9kb3dubG9hZC1zcnRtLWZvci1hbi1lbnRpcmUtY291bnRyeS8NCg0KKioqDQojIyBMb25nZXIgVGVybSBQcm9qZWN0IE5vdGVzDQoqIFJ1biB0ZXN0cyB3aXRoIGluY3JlYXNpbmcgJSBjbG91ZCBjb3ZlcmFnZSB0byBzZWUgaG93IHByZWRpY3Rpb25zIGRpZmZlci4gSG93IG11Y2ggaW5mbyBvbiBuZWFyYnkgZmxvb2RpbmcgaXMgbmVlZGVkPw0KKiBTaG91bGQgaW1hZ2VzIGJlIG1vc2FpY2tlZCB0b2dldGhlcj8gRGlzdGFuY2UgZnJvbSB3YXRlcmJvZGllcyBvciBuZWFyYnkgZmxvb2RpbmcgaXMgY3VycmVudGx5IHJlc3RyaWN0ZWQgdG8ganVzdCBvbmUgaW1hZ2UsIGlnbm9yaW5nIGFkamFjZW50IGltYWdlcy4=</div>
+<div id="rmd-source-code">LS0tDQp0aXRsZTogIlByb2plY3QgTm90ZXMiDQpvdXRwdXQ6IGh0bWxfbm90ZWJvb2sNCi0tLQ0KDQojIyBQcm9qZWN0IE5vdGVzDQoqIFRoZSBzbG9wZS9hc3BlY3QgZnJvbSBgZ2RhbGRlbWAgbG9vayBhIGxpdHRsZSBmdW5reSwgY2hlY2sgdGhlbSBvdXQgaW4gQXJjR0lTDQoNCiogQ3JlYXRlIGxheWVyIG9mIGRpc3RhbmNlcyBmcm9tIHBlcm1hbmVudCB3YXRlciBleHRlbnQNCg0KKiBIb3cgdG8gdmlzdWFsaXplIGNvcnJlY3QvaW5jb3JyZWN0bHkgcHJlZGljdGVkIHBpeGVscyBhcyBhIHJhc3Rlcj8NCg0KKiBUbyBhdm9pZCBkYXRhIGFsbG9jYXRpb24gcHJvYmxlbXMsIG1heWJlIHdoZW4gY3JlYXRpbmcgYXV4IGRhdGEgd2Ugc2hvdWxkOiBjcmVhdGUsIHNhdmUsIGRlbGV0ZSBlYWNoIG9uZSBhbmQgdGhlbiBsb2FkIHRoZW0gYXQgdGhlIGVuZCB0byBjcmVhdGUgdGhlIG1hdHJpeC4NCg0KKiBTYXZlIGZpbGVzIG5lZWRlZCBmb3IgR0RBTCBvcGVyYXRpb25zIHRvIGEgdGVtcCBmb2xkZXIsIHRoZW4gZGVsZXRlIHRoZSBlbnRpcmUgZm9sZGVyDQoNCiogTWFrZSBuYW1pbmcgY29udmVudGlvbnMgY29uc2lzdGVudCAoZS5nLiAiLi5fYWxpZ24udGlmIiIgb3IgIi4uX3Byb2oudGlmIikNCg0KKioqDQojIyBDb21wbGV0ZWQgVGFza3MgYW5kIE5vdGVzDQoNCiAqIExheWVycyBhcmUgbm90IGxpbmluZyB1cA0KICAgICsgREVNIGRvd25sb2FkZWQgdXNpbmcganVzdCB0aGUgY2VudHJvaWQgYW5kIG5vdCB0aGUgZXh0ZW50IG5vdCB0aGUgY29ycmVjdCBzaXplDQogICAgKyBNb3NhaWMgd2l0aCBgZ2V0RGF0YWAgZnVuY3Rpb24gdXNpbmcgY29kZSBoZXJlOiBodHRwczovL3d3dy5naXMtYmxvZy5jb20vZG93bmxvYWQtc3J0bS1mb3ItYW4tZW50aXJlLWNvdW50cnkvDQoNCioqKg0KIyMgTG9uZ2VyIFRlcm0gUHJvamVjdCBOb3Rlcw0KKiBSdW4gdGVzdHMgd2l0aCBpbmNyZWFzaW5nICUgY2xvdWQgY292ZXJhZ2UgdG8gc2VlIGhvdyBwcmVkaWN0aW9ucyBkaWZmZXIuIEhvdyBtdWNoIGluZm8gb24gbmVhcmJ5IGZsb29kaW5nIGlzIG5lZWRlZD8NCg0KKiBTaG91bGQgaW1hZ2VzIGJlIG1vc2FpY2tlZCB0b2dldGhlcj8gRGlzdGFuY2UgZnJvbSB3YXRlcmJvZGllcyBvciBuZWFyYnkgZmxvb2RpbmcgaXMgY3VycmVudGx5IHJlc3RyaWN0ZWQgdG8ganVzdCBvbmUgaW1hZ2UsIGlnbm9yaW5nIGFkamFjZW50IGltYWdlcy4=</div>
 
 
 

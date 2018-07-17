@@ -5,7 +5,11 @@ output: html_notebook
 
 ## Project Notes
 * The slope/aspect from `gdaldem` look a little funky, check them out in ArcGIS
+
 * Create layer of distances from permanent water extent
+
+* How to visualize correct/incorrectly predicted pixels as a raster?
+
 * To avoid data allocation problems, maybe when creating aux data we should: create, save, delete each one and then load them at the end to create the matrix.
 
 * Save files needed for GDAL operations to a temp folder, then delete the entire folder
@@ -22,4 +26,5 @@ output: html_notebook
 ***
 ## Longer Term Project Notes
 * Run tests with increasing % cloud coverage to see how predictions differ. How much info on nearby flooding is needed?
+
 * Should images be mosaicked together? Distance from waterbodies or nearby flooding is currently restricted to just one image, ignoring adjacent images.

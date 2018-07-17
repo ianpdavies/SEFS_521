@@ -293,7 +293,7 @@ z <- raster(nrows=nrow(ppad_cloud), ncols=ncol(ppad_cloud), crs=crs(scene))
 extent(z) <- extent(scene)
 z <- setValues(z, values=ppad_cloud)
 
-writeRaster(z, 'cloud_vals.tif', overwrite=TRUE) # save raster and read it, so the values are stored in file instead of in-memory (faster)
+writeRaster(z, 'cloud_vals.tif', format='GTiff', overwrite=TRUE) # save raster and read it, so the values are stored in file instead of in-memory (faster)
 z <- raster('cloud_vals.tif')
 
 ppad_uncloud <- ifelse(ppad<0.3, 1, NA) # reclassify matrix with arbitrary cutoff (< cutoff is clouded)
@@ -301,19 +301,17 @@ y <- raster(nrows=nrow(ppad_uncloud), ncols=ncol(ppad_uncloud), crs=crs(scene))
 extent(y) <- extent(scene)
 y <- setValues(y, values=ppad_uncloud)
 
-writeRaster(y, 'uncloud_vals.tif', overwrite=TRUE)
+writeRaster(y, 'uncloud_vals.tif', format='GTiff', overwrite=TRUE)
 y <- raster('uncloud_vals.tif')
 
 rm(ppad, ppad_cloud, ppad_uncloud)
 #==================================================================
 # Extracting values from cloudy and non-cloudy pixels
 #==================================================================
-# create separate masked rasters for unclouded pixels (train) and cloudy pixels (test)
 
 # Need to increase memory usage for masking. Benchmark gives me a little over 1 minute
 rasterOptions(chunksize = 1e+08, maxmemory = 1e+09)
 
-# extract clouded or unclouded pixel values from each raster
 masker <- function(..., m){ # ... is all input rasters, z is raster of
   rasts <- list(...)
   mask.rasts <- lapply(rasts, function(x) mask(x, m)) # will differently sized rasters be a problem?
@@ -321,22 +319,28 @@ masker <- function(..., m){ # ... is all input rasters, z is raster of
   do.call(cbind, mask.vals)
 }
 
+# Create a raster with cellnumbers so we can reassemble cells into an image of predictions
+cellnums <- slope
+cellnums <- setValues(cellnums, values = seq(1, length(cellnums), 1))
+writeRaster(cellnums, 'cellnums.tif', format='GTiff', overwrite=TRUE)
+cellnums <- raster('cellnums.tif')
+
 #=================== Clouded pixels
-start.time <- Sys.time()
-rast.mat.clouds <- masker(slope, aspect, nhd.dist, nlcd.proj, water, m=z)
-paste0("Runtime is ", round(Sys.time() - start.time,3))
-rast.mat.clouds <- cbind(xyFromCell(z, 1:length(z)), rast.mat.clouds) # add XY as well from cell numbers of z
-paste0("Runtime is ", round(Sys.time() - start.time,3))
+rast.mat.clouds <- masker(cellnums, slope, aspect, nhd.dist, nlcd.proj, water, m=z)
+rast.mat.clouds <- cbind(xyFromCell(z, 1:length(z)), # add XY as well from cell numbers of z
+                         rast.mat.clouds) # add data
 rast.mat.clouds <- rast.mat.clouds[complete.cases(rast.mat.clouds),] # remove rows with NA
-paste0("Runtime is ", round(Sys.time() - start.time,3))
-fwrite(data.frame(rast.mat.clouds), "rast_mat_clouds.csv", row.names=FALSE)
-paste0("Runtime is ", round(Sys.time() - start.time,3))
+colnames(rast.mat.clouds) <- c('x','y','cellnums','slope','aspect','nhd_dist', 'nlcd', 'water') # give proper col names
+fwrite(data.frame(rast.mat.clouds), "rast_mat_clouds.csv", row.names=FALSE) # save matrix as csv for use in python
 
 #=================== Unclouded pixels
-rast.mat.unclouds <- masker(slope, aspect, nhd.dist, nlcd.proj, water, mask=y)
-rast.mat.unclouds <- cbind(xyFromCell(y, 1:length(y)), rast.mat.unclouds) # add XY as well from cell numbers of z
-rast.mat.unclouds <- rast.mat.unclouds[complete.cases(rast.mat.unclouds),] # remove rows with NA
+rast.mat.unclouds <- masker(cellnums, slope, aspect, nhd.dist, nlcd.proj, water, m=y)
+rast.mat.unclouds <- cbind(xyFromCell(y, 1:length(y)), 
+                           rast.mat.unclouds)
+rast.mat.unclouds <- rast.mat.unclouds[complete.cases(rast.mat.unclouds),]
+colnames(rast.mat.unclouds) <- c('x','y','cellnums', 'slope','aspect','nhd_dist', 'nlcd', 'water')
 fwrite(data.frame(rast.mat.unclouds), "rast_mat_unclouds.csv", row.names=FALSE)
+
 
 #==================================================================
 # Save and delete

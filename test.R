@@ -57,43 +57,25 @@ masker <- function(..., m){ # ... is all input rasters, z is raster of
   do.call(cbind, mask.vals)
 }
 
+# Create a raster with cellnumbers so we can reassemble cells into an image of predictions
+cellnums <- slope
+cellnums <- setValues(cellnums, values = seq(1, length(cellnums), 1))
+writeRaster(cellnums, 'cellnums.tif', format='GTiff', overwrite=TRUE)
+cellnums <- raster('cellnums.tif')
+
 #=================== Clouded pixels
-start.time <- Sys.time()
-rast.mat.clouds <- masker(slope, aspect, nhd.dist, nlcd.proj, water, m=z)
-paste0("Runtime is ", round(Sys.time() - start.time,3))
-rast.mat.clouds <- cbind(xyFromCell(z, 1:length(z)), rast.mat.clouds) # add XY as well from cell numbers of z
-paste0("Runtime is ", round(Sys.time() - start.time,3))
+rast.mat.clouds <- masker(cellnums, slope, aspect, nhd.dist, nlcd.proj, water, m=z)
+rast.mat.clouds <- cbind(xyFromCell(z, 1:length(z)), # add XY as well from cell numbers of z
+                         rast.mat.clouds) # add data
 rast.mat.clouds <- rast.mat.clouds[complete.cases(rast.mat.clouds),] # remove rows with NA
-paste0("Runtime is ", round(Sys.time() - start.time,3))
-fwrite(data.frame(rast.mat.clouds), "rast_mat_clouds.csv", row.names=FALSE)
-paste0("Runtime is ", round(Sys.time() - start.time,3))
+colnames(rast.mat.clouds) <- c('x','y','cellnums','slope','aspect','nhd_dist', 'nlcd', 'water') # give proper col names
+fwrite(data.frame(rast.mat.clouds), "rast_mat_clouds.csv", row.names=FALSE) # save matrix as csv for use in python
 
 #=================== Unclouded pixels
-rast.mat.unclouds <- masker(slope, aspect, nhd.dist, nlcd.proj, water, m=y)
-rast.mat.unclouds <- cbind(xyFromCell(y, 1:length(y)), rast.mat.unclouds) # add XY as well from cell numbers of z
-rast.mat.unclouds <- rast.mat.unclouds[complete.cases(rast.mat.unclouds),] # remove rows with NA
+rast.mat.unclouds <- masker(cellnums, slope, aspect, nhd.dist, nlcd.proj, water, m=y)
+rast.mat.unclouds <- cbind(xyFromCell(y, 1:length(y)), 
+                           rast.mat.unclouds)
+rast.mat.unclouds <- rast.mat.unclouds[complete.cases(rast.mat.unclouds),]
+colnames(rast.mat.unclouds) <- c('x','y','cellnums', 'slope','aspect','nhd_dist', 'nlcd', 'water')
 fwrite(data.frame(rast.mat.unclouds), "rast_mat_unclouds.csv", row.names=FALSE)
 
-
-#=================== try using gdal_translate
-
-# first create rasterbrick with mask as a layer
-# slope.brick <- brick(slope, z)
-slope.brick <- stack(slope, z)
-writeRaster(slope.brick, 'slope_brick.tif', format="GTiff", overwrite=TRUE)
-gdal_translate('slope_brick.tif', 'slope_mask.tif', b=1, mask=2, strict=TRUE, overwrite=TRUE, verbose=TRUE)
-plot(raster('slope_mask.tif'))
-
-#=================== try using gdaltindex and gdal_rasterize
-writeRaster(z, 'z.tif', format='GTiff', overwrite=TRUE)
-gdaltindex(gdal_file = 'z.tif', output_Vector=TRUE, verbose=TRUE)
-
-
-#=================== using extract with cell numbers of non-NA values in mask
-p <- cbind(getValues(z), seq(1, length(z), 1))
-p.na <- p[complete.cases(p),]
-p.vals <- extract(slope, p.na[,2])
-# TOO SLOW
-
-#=================== 
-# Just use python?
