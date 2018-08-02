@@ -79,3 +79,4 @@ rast.mat.unclouds <- rast.mat.unclouds[complete.cases(rast.mat.unclouds),]
 colnames(rast.mat.unclouds) <- c('x','y','cellnums', 'slope','aspect','nhd_dist', 'nlcd', 'water')
 fwrite(data.frame(rast.mat.unclouds), "rast_mat_unclouds.csv", row.names=FALSE)
 
+ 

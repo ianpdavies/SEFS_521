@@ -16,6 +16,8 @@ output: html_notebook
 
 * Make naming conventions consistent (e.g. ".._align.tif"" or ".._proj.tif")
 
+* Might be faster to crop DEM first and then calculate derived rasters
+
 ***
 ## Completed Tasks and Notes
 
