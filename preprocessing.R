@@ -31,13 +31,13 @@ files <- c('imgs\\Bulk Order 910930\\201609_Flood_US', # scene1
            'imgs\\Bulk Order 912622\\201512_Flood_Midwest_US\\LS080210332016010200000000MS00_GO006005004',
            'imgs\\Bulk Order 912622\\201311_Floods_TX\\LS080270392013110300000000MS00_GO006005004')
 
-# ## actually only 1-5 because i gave up on reading 6-9 (don't want thermal or pan, 
-# # but the files are stored differently from those downloaded from disaster events page)
-# # c('imgs\\Bulk Order 910931\\U.S. Landsat 4-8 ARD\\LC08_CU_002007_20170301_20171020_C01_V01_SR',
-# # 'imgs\\Bulk Order 910931\\U.S. Landsat 4-8 ARD\\LC08_CU_002008_20170301_20171020_C01_V01_SR',
-# # 'imgs\\Bulk Order 910931\\U.S. Landsat 4-8 ARD\\LC08_CU_002008_20180225_20180309_C01_V01_SR',
-# # 'imgs\\Bulk Order 910931\\U.S. Landsat 4-8 ARD\\LE07_CU_002008_20170214_20170928_C01_V01_SR')
-# 
+# actually only 1-5 because i gave up on reading 6-9 (don't want thermal or pan,
+# but the files are stored differently from those downloaded from disaster events page)
+# c('imgs\\Bulk Order 910931\\U.S. Landsat 4-8 ARD\\LC08_CU_002007_20170301_20171020_C01_V01_SR',
+# 'imgs\\Bulk Order 910931\\U.S. Landsat 4-8 ARD\\LC08_CU_002008_20170301_20171020_C01_V01_SR',
+# 'imgs\\Bulk Order 910931\\U.S. Landsat 4-8 ARD\\LC08_CU_002008_20180225_20180309_C01_V01_SR',
+# 'imgs\\Bulk Order 910931\\U.S. Landsat 4-8 ARD\\LE07_CU_002008_20170214_20170928_C01_V01_SR')
+
 img.names <- list()
 img.meta <- list()
 
@@ -57,22 +57,22 @@ for(i in 1:length(files)){
 # # These are supposed to read XML files but get error: 'attempt to set an attribute on NULL'
 # # require(RStoolbox)
 # # readMeta('imgs\\Bulk Order 910931\\U.S. Landsat 4-8 ARD\\LC08_CU_002007_20170301_20171020_C01_V01_SR\\LC08_CU_002007_20170301_20171020_C01_V01.xml')
-# 
+
 # # stack files
 # imgs <- list()
-# for(i in 1:length(img.names)){ 
+# for(i in 1:length(img.names)){
 #   scene_stack <- stack(img.names[[i]])
 #   scene <- brick(scene_stack)
 #   meta <- read.csv(img.meta[[i]])
 #   save(scene, meta, file=paste0('scene',i, sep=""))
 #   print(paste0('Finished scene', i))
 # }
-# 
-# # devtools::install_github("16EAGLE/getSpatialData")
-# # require('getSpatialData')
-# # can only get L1 products from Landsat-8
-# 
-# # plotRGB(scene, r=4,g=3,b=2, stretch='hist')
+
+# devtools::install_github("16EAGLE/getSpatialData")
+# require('getSpatialData')
+# can only get L1 products from Landsat-8
+
+# plotRGB(scene, r=4,g=3,b=2, stretch='hist')
 
 
 #==================================================================
@@ -161,7 +161,7 @@ require(FedData)
 nlcd <- get_nlcd(template = ext, label='scene', year=2011, dataset="landcover")
 writeRaster(nlcd, "nlcd_scene.tif", format = "GTiff") # export to local file so we can use with gdalwarp
 input <- paste0('..\\', img.names[[imgnum]][1], sep="") # get a raster from the scene
-align_rasters('nlcd_scene.tif', input, dstfile = 'nlcd_align.tif')
+align_rasters('nlcd_scene.tif', input, dstfile = 'nlcd_align.tif', overwrite=TRUE)
 nlcd.proj <- raster('nlcd_align.tif')
 
 # consider cleaning up the NLCD a bit using raster::focal()

@@ -18,6 +18,9 @@ output: html_notebook
 
 * Might be faster to crop DEM first and then calculate derived rasters
 
+* Clip out the permanent water - geomorphology/hydrology of standing and flood waters may differ drastically and we don't want the classifier getting confused.
+
+
 ***
 ## Completed Tasks and Notes
 
